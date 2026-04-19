@@ -17,7 +17,7 @@ struct ConversationListView: View {
                 .foregroundStyle(Design.accent)
             }
 
-            Section("History") {
+            Section {
                 ForEach(conversations) { conversation in
                     NavigationLink(value: conversation.id) {
                         VStack(alignment: .leading, spacing: 4) {
@@ -36,6 +36,8 @@ struct ConversationListView: View {
                         }
                     }
                 }
+            } header: {
+                Text("History")
             }
         }
         .navigationTitle("LlamaiOS")

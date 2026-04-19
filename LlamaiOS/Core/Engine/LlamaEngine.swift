@@ -201,16 +201,29 @@ final class LlamaCppBridgeAdapter: @unchecked Sendable, LlamaBridgeProviding {
     }
 
     func metadata(atPath path: String) throws -> [String: String] {
-        try bridge.readMetadata(atPath: path) as? [String: String] ?? [:]
+        var error: NSError?
+        let metadata = bridge.readMetadata(atPath: path, error: &error)
+        if let error {
+            throw error
+        }
+        return metadata
     }
 
     func loadModel(path: String, settings: GenerationSettings) throws {
-        try bridge.loadModel(
+        var error: NSError?
+        let didLoad = bridge.loadModel(
             atPath: path,
             contextLength: settings.contextLength,
             gpuLayers: settings.gpuLayers,
-            threads: settings.threads
+            threads: settings.threads,
+            error: &error
         )
+        if let error {
+            throw error
+        }
+        if !didLoad {
+            throw LlamaEngineError.backendUnavailable
+        }
     }
 
     func unloadModel() {
@@ -235,8 +248,16 @@ final class LlamaCppBridgeAdapter: @unchecked Sendable, LlamaBridgeProviding {
         parameters.seed = settings.seed
         parameters.threads = settings.threads
 
-        let stats = try bridge.generate(withPrompt: prompt, parameters: parameters) { token, count, tps in
+        var error: NSError?
+        let stats = bridge.generate(withPrompt: prompt, parameters: parameters, onToken: { token, count, tps in
             onToken(token, count, tps)
+        }, error: &error)
+
+        if let error {
+            throw error
+        }
+        guard let stats else {
+            throw LlamaEngineError.backendUnavailable
         }
 
         return GenerationStats(

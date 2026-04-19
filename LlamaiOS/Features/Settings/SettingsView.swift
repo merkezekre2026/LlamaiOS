@@ -13,10 +13,12 @@ struct SettingsView: View {
                 if let settings = settingsRecords.first {
                     SettingsForm(settings: settings)
 
-                    Section("Backend") {
+                    Section {
                         LabeledContent("State", value: engineStateText)
                         LabeledContent("Active Model", value: activeModelName(settings: settings))
                         LabeledContent("Last Load", value: "\(engine.lastLoadTime, specifier: "%.2f")s")
+                    } header: {
+                        Text("Backend")
                     }
                 }
 
@@ -58,19 +60,25 @@ private struct SettingsForm: View {
     @Bindable var settings: AppSettingsRecord
 
     var body: some View {
-        Section("Default System Prompt") {
+        Section {
             TextEditor(text: $settings.defaultSystemPrompt)
                 .frame(minHeight: 120)
                 .scrollContentBackground(.hidden)
+        } header: {
+            Text("Default System Prompt")
         }
 
-        Section("Generation Defaults") {
+        Section {
             GenerationControls(settings: $settings.generationDefaults)
+        } header: {
+            Text("Generation Defaults")
         }
 
-        Section("Interface") {
+        Section {
             Toggle("Show performance panel", isOn: $settings.showPerformancePanel)
             Toggle("Auto-title new chats", isOn: $settings.autoTitleChats)
+        } header: {
+            Text("Interface")
         }
     }
 }
@@ -134,15 +142,19 @@ private struct AboutView: View {
 
     var body: some View {
         List {
-            Section("App") {
+            Section {
                 LabeledContent("Name", value: "LlamaiOS")
                 LabeledContent("Version", value: "1.0")
                 LabeledContent("Backend", value: "llama.cpp XCFramework")
+            } header: {
+                Text("App")
             }
-            Section("Current Session") {
+            Section {
                 LabeledContent("Loaded Model", value: engine.loadedModelPath ?? "None")
                 LabeledContent("Generated Tokens", value: "\(engine.lastGenerationStats.tokenCount)")
                 LabeledContent("Tokens/sec", value: String(format: "%.1f", engine.lastGenerationStats.tokensPerSecond))
+            } header: {
+                Text("Current Session")
             }
         }
         .navigationTitle("About")

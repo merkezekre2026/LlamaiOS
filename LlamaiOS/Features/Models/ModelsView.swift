@@ -22,7 +22,7 @@ struct ModelsView: View {
                     .foregroundStyle(Design.accent)
                 }
 
-                Section("Installed") {
+                Section {
                     if models.isEmpty {
                         ContentUnavailableView(
                             "No Models",
@@ -56,6 +56,8 @@ struct ModelsView: View {
                             .tint(Design.accent)
                         }
                     }
+                } header: {
+                    Text("Installed")
                 }
             }
             .navigationTitle("Models")
@@ -185,7 +187,7 @@ private struct ModelDetailView: View {
 
     var body: some View {
         List {
-            Section("File") {
+            Section {
                 LabeledContent("Name", value: model.displayName)
                 LabeledContent("Size", value: ByteCountFormatter.string(fromByteCount: model.fileSize, countStyle: .file))
                 LabeledContent("Imported", value: model.importedAt.formatted(date: .abbreviated, time: .shortened))
@@ -195,9 +197,11 @@ private struct ModelDetailView: View {
                 Text(model.localPath)
                     .font(.caption)
                     .foregroundStyle(Design.secondaryText)
+            } header: {
+                Text("File")
             }
 
-            Section("Metadata") {
+            Section {
                 if model.metadata.isEmpty {
                     Text("No metadata was exposed by llama.cpp for this model.")
                         .foregroundStyle(Design.secondaryText)
@@ -212,6 +216,8 @@ private struct ModelDetailView: View {
                         }
                     }
                 }
+            } header: {
+                Text("Metadata")
             }
         }
         .navigationTitle("Model Info")
