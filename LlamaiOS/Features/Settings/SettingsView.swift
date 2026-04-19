@@ -13,12 +13,16 @@ struct SettingsView: View {
                 if let settings = settingsRecords.first {
                     SettingsForm(settings: settings)
 
-                    Section {
-                        LabeledContent("State", value: engineStateText)
-                        LabeledContent("Active Model", value: activeModelName(settings: settings))
-                        LabeledContent("Last Load", value: "\(engine.lastLoadTime, specifier: "%.2f")s")
-                    } header: {
+                    VStack(alignment: .leading, spacing: 10) {
                         Text("Backend")
+                            .font(.caption)
+                            .foregroundStyle(Design.secondaryText)
+                            .textCase(.uppercase)
+                        VStack(spacing: 10) {
+                            SettingsInfoRow(title: "State", value: engineStateText)
+                            SettingsInfoRow(title: "Active Model", value: activeModelName(settings: settings))
+                            SettingsInfoRow(title: "Last Load", value: "\(engine.lastLoadTime, specifier: "%.2f")s")
+                        }
                     }
                 }
 
@@ -53,6 +57,21 @@ struct SettingsView: View {
             return "None"
         }
         return model.displayName
+    }
+}
+
+private struct SettingsInfoRow: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+            Spacer(minLength: 16)
+            Text(value)
+                .foregroundStyle(Design.secondaryText)
+                .multilineTextAlignment(.trailing)
+        }
     }
 }
 

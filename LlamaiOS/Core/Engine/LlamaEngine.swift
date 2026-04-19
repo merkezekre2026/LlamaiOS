@@ -210,20 +210,12 @@ final class LlamaCppBridgeAdapter: @unchecked Sendable, LlamaBridgeProviding {
     }
 
     func loadModel(path: String, settings: GenerationSettings) throws {
-        var error: NSError?
-        let didLoad = bridge.loadModel(
+        try bridge.loadModel(
             atPath: path,
             contextLength: settings.contextLength,
             gpuLayers: settings.gpuLayers,
-            threads: settings.threads,
-            error: &error
+            threads: settings.threads
         )
-        if let error {
-            throw error
-        }
-        if !didLoad {
-            throw LlamaEngineError.backendUnavailable
-        }
     }
 
     func unloadModel() {
@@ -255,9 +247,6 @@ final class LlamaCppBridgeAdapter: @unchecked Sendable, LlamaBridgeProviding {
 
         if let error {
             throw error
-        }
-        guard let stats else {
-            throw LlamaEngineError.backendUnavailable
         }
 
         return GenerationStats(
