@@ -1,0 +1,140 @@
+name: Unsigned iOS Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      llama_xcframework_artifact:
+        description: "Optional artifact name containing llama.xcframework or a zip with llama.xcframework"
+        required: false
+        type: string
+      upload_ipa:
+        description: "Upload the unsigned .ipa"
+        required: true
+        default: true
+        type: boolean
+      release_tag:
+        description: "Release tag to create or update"
+        required: true
+        default: "unsigned-ios-latest"
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  build:
+    name: Build unsigned iOS app
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    env:
+      PROJECT: LlamaiOS.xcodeproj
+      SCHEME: LlamaiOS
+      CONFIGURATION: Release
+      DERIVED_DATA: ${{ github.workspace }}/DerivedData
+      RESULT_BUNDLE: ${{ github.workspace }}/BuildResults/LlamaiOS.xcresult
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer || sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          xcodebuild -version
+
+      - name: Download llama.cpp XCFramework artifact
+        if: ${{ inputs.llama_xcframework_artifact != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.llama_xcframework_artifact }}
+          path: Vendor
+
+      - name: Normalize llama.cpp XCFramework location
+        if: ${{ inputs.llama_xcframework_artifact != '' }}
+        run: |
+          set -euo pipefail
+          if [ -d "Vendor/llama.xcframework" ]; then
+            exit 0
+          fi
+
+          ZIP_PATH="$(find Vendor -maxdepth 2 -type f -name '*.zip' | head -n 1 || true)"
+          if [ -n "$ZIP_PATH" ]; then
+            unzip -q "$ZIP_PATH" -d Vendor
+          fi
+
+          FOUND="$(find Vendor -type d -name 'llama.xcframework' | head -n 1 || true)"
+          if [ -n "$FOUND" ] && [ "$FOUND" != "Vendor/llama.xcframework" ]; then
+            rm -rf Vendor/llama.xcframework
+            mv "$FOUND" Vendor/llama.xcframework
+          fi
+
+      - name: Verify llama.cpp XCFramework
+        run: |
+          set -euo pipefail
+          test -d Vendor/llama.xcframework
+
+      - name: Build unsigned app
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$RESULT_BUNDLE")"
+          xcodebuild build \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration "$CONFIGURATION" \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath "$DERIVED_DATA" \
+            -resultBundlePath "$RESULT_BUNDLE" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM="" \
+            ONLY_ACTIVE_ARCH=NO
+
+      - name: Package unsigned IPA
+        if: ${{ inputs.upload_ipa }}
+        run: |
+          set -euo pipefail
+          APP_PATH="$(find "$DERIVED_DATA/Build/Products/$CONFIGURATION-iphoneos" -maxdepth 1 -name 'LlamaiOS.app' -type d | head -n 1)"
+          test -n "$APP_PATH"
+          rm -rf Payload LlamaiOS-unsigned.ipa
+          mkdir -p Payload
+          ditto "$APP_PATH" Payload/LlamaiOS.app
+          ditto -c -k --sequesterRsrc --keepParent Payload LlamaiOS-unsigned.ipa
+
+      - name: Upload unsigned IPA
+        if: ${{ inputs.upload_ipa }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: LlamaiOS-unsigned-ipa
+          path: LlamaiOS-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Create or update GitHub Release
+        if: ${{ inputs.upload_ipa }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" LlamaiOS-unsigned.ipa --clobber
+          else
+            gh release create "$RELEASE_TAG" \
+              LlamaiOS-unsigned.ipa \
+              --title "LlamaiOS unsigned iOS build" \
+              --notes "Unsigned iOS IPA built manually from workflow_dispatch."
+          fi
+
+      - name: Upload xcodebuild result bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: LlamaiOS-xcresult
+          path: BuildResults/LlamaiOS.xcresult
+          if-no-files-found: ignore
+          retention-days: 14
