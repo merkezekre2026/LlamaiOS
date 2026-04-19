@@ -3,9 +3,10 @@ name: Unsigned iOS Build
 on:
   workflow_dispatch:
     inputs:
-      llama_xcframework_artifact:
-        description: "Optional artifact name containing llama.xcframework or a zip with llama.xcframework"
+      llama_cpp_release_tag:
+        description: "llama.cpp release tag to download, or latest"
         required: false
+        default: "latest"
         type: string
       upload_ipa:
         description: "Upload the unsigned .ipa"
@@ -45,31 +46,35 @@ jobs:
           sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer || sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           xcodebuild -version
 
-      - name: Download llama.cpp XCFramework artifact
-        if: ${{ inputs.llama_xcframework_artifact != '' }}
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ inputs.llama_xcframework_artifact }}
-          path: Vendor
-
-      - name: Normalize llama.cpp XCFramework location
-        if: ${{ inputs.llama_xcframework_artifact != '' }}
+      - name: Download llama.cpp XCFramework
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LLAMA_CPP_RELEASE_TAG: ${{ inputs.llama_cpp_release_tag }}
         run: |
           set -euo pipefail
-          if [ -d "Vendor/llama.xcframework" ]; then
-            exit 0
+          rm -rf Vendor/llama.xcframework Vendor/llama-xcframework-download
+          mkdir -p Vendor/llama-xcframework-download
+
+          if [ "$LLAMA_CPP_RELEASE_TAG" = "latest" ] || [ -z "$LLAMA_CPP_RELEASE_TAG" ]; then
+            gh release download \
+              --repo ggml-org/llama.cpp \
+              --pattern "llama-*-xcframework.zip" \
+              --dir Vendor/llama-xcframework-download
+          else
+            gh release download "$LLAMA_CPP_RELEASE_TAG" \
+              --repo ggml-org/llama.cpp \
+              --pattern "llama-*-xcframework.zip" \
+              --dir Vendor/llama-xcframework-download
           fi
 
-          ZIP_PATH="$(find Vendor -maxdepth 2 -type f -name '*.zip' | head -n 1 || true)"
-          if [ -n "$ZIP_PATH" ]; then
-            unzip -q "$ZIP_PATH" -d Vendor
-          fi
+          ZIP_PATH="$(find Vendor/llama-xcframework-download -maxdepth 1 -type f -name 'llama-*-xcframework.zip' | head -n 1 || true)"
+          test -n "$ZIP_PATH"
+          unzip -q "$ZIP_PATH" -d Vendor/llama-xcframework-download
 
-          FOUND="$(find Vendor -type d -name 'llama.xcframework' | head -n 1 || true)"
-          if [ -n "$FOUND" ] && [ "$FOUND" != "Vendor/llama.xcframework" ]; then
-            rm -rf Vendor/llama.xcframework
-            mv "$FOUND" Vendor/llama.xcframework
-          fi
+          FOUND="$(find Vendor/llama-xcframework-download -type d -name 'llama.xcframework' | head -n 1 || true)"
+          test -n "$FOUND"
+          mv "$FOUND" Vendor/llama.xcframework
+          rm -rf Vendor/llama-xcframework-download
 
       - name: Verify llama.cpp XCFramework
         run: |
