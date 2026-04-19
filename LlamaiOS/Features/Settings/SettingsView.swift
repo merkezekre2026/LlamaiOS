@@ -21,7 +21,7 @@ struct SettingsView: View {
                         VStack(spacing: 10) {
                             SettingsInfoRow(title: "State", value: engineStateText)
                             SettingsInfoRow(title: "Active Model", value: activeModelName(settings: settings))
-                            SettingsInfoRow(title: "Last Load", value: "\(engine.lastLoadTime, specifier: "%.2f")s")
+                            SettingsInfoRow(title: "Last Load", value: String(format: "%.2fs", engine.lastLoadTime))
                         }
                     }
                 }

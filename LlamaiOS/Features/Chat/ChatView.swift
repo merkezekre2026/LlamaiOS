@@ -193,7 +193,7 @@ private struct MessageBubble: View {
                         .textSelection(.enabled)
                 }
                 if message.role == .assistant, message.tokenCount > 0 {
-                    Text("\(message.tokenCount) tokens · \(message.tokensPerSecond, specifier: "%.1f") tok/s")
+                    Text("\(message.tokenCount) tokens · \(String(format: "%.1f", message.tokensPerSecond)) tok/s")
                         .font(.caption2)
                         .foregroundStyle(Design.secondaryText)
                 }
@@ -247,8 +247,8 @@ private struct PerformanceStrip: View {
         HStack(spacing: 12) {
             Label(statusText, systemImage: "cpu")
             Spacer()
-            Text("\(lastMessage?.tokensPerSecond ?? engine.lastGenerationStats.tokensPerSecond, specifier: "%.1f") tok/s")
-            Text("\(lastMessage?.elapsedSeconds ?? engine.lastGenerationStats.elapsedSeconds, specifier: "%.1f")s")
+            Text("\(String(format: "%.1f", lastMessage?.tokensPerSecond ?? engine.lastGenerationStats.tokensPerSecond)) tok/s")
+            Text("\(String(format: "%.1f", lastMessage?.elapsedSeconds ?? engine.lastGenerationStats.elapsedSeconds))s")
         }
         .font(.caption)
         .foregroundStyle(Design.secondaryText)
